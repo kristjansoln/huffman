@@ -78,20 +78,41 @@ def getNodeTree(freq_array):
 
     return node_tree
 
+"""
+encode: takes a character array and encodes it based on the encoding table. Returns a binary list.
+"""
+def encode(inp_array, enc_table):
+    encoded_array = [];
+    for c in inp_array:
+        encoded_array.append(enc_table[c])
 
+    merged = ''.join(encoded_array)
+    binary_data = int(merged, 2)
 
-string1 = '00001111111111111111111112222222222299999999999999'
-string2 = '1111111111111111111111111222222222222222222223333333333333334444444444555555556666666777777888889999'
+    return binary_data
 
-freq_list = getFrequency(string2)
+# TODO: Decode
 
-tree = getNodeTree(freq_list)
+# TODO: Export binary file
 
-# tree[0][0] is the top node of the tree
-codingTable = getCodingTable(tree[0][0])
+if __name__ == '__main__':
+    string1 = '00001111111111111111111112222222222299999999999999'
+    string1_test = '19192021'
+    string2 = '1111111111111111111111111222222222222222222223333333333333334444444444555555556666666777777888889999'
 
-# Print out the coding table
-print(' Char | Huffman code ')
-print('----------------------')
-for (char, frequency) in freq_list:
-    print(' %-4r |%12s' % (char, codingTable[char]))
+    freq_list = getFrequency(string1)
+
+    tree = getNodeTree(freq_list)
+
+    # tree[0][0] is the top node of the tree
+    codingTable = getCodingTable(tree[0][0])
+
+    # Print out the coding table
+    print(' Char | Huffman code ')
+    print('----------------------')
+    for (char, frequency) in freq_list:
+        print(' %-4r |%12s' % (char, codingTable[char]))
+
+    # Encode
+    bin_enc = encode(string1_test, codingTable)
+
