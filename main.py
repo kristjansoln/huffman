@@ -82,7 +82,8 @@ def getNodeTree(freq_array):
 encode: takes a character array and encodes it based on the encoding table. Returns a binary list.
 """
 def encode(inp_array, enc_table):
-    encoded_array = [];
+    encoded_array = ['1'];
+    # Always start with a 1, so the casting to binary data doesn't trim leading zeros.
     for c in inp_array:
         encoded_array.append(enc_table[c])
 
@@ -91,9 +92,32 @@ def encode(inp_array, enc_table):
 
     return binary_data
 
-# TODO: Decode
+"""
+decode: takes a binary array and decodes it according to the encoding table. Returns a string.
+"""
+def decode(binary_data, enc_table):
+    out_array = []
+    # Remove the '0b' prefix, along with the added leading '1'. See 'encode()'
+    binary_data = bin(binary_data)[3:]
 
-# TODO: Export binary file
+    el = ''
+    for b in binary_data:
+        # If you find a match for el in the encoding table, decode it. Otherwise add the next bit and try again.
+        el = el + b
+        match = next(((symbol, encoding) for symbol, encoding in enc_table.items() if el == encoding), None)
+        if match is not None:
+            out_array.append(match[0])
+            el = ''
+
+    return ''.join(out_array)
+
+# TODO: Import plain text file
+
+# TODO: Export encoded file
+
+# TODO: Import encoded file
+
+# TODO: Export plain text file
 
 if __name__ == '__main__':
     string1 = '00001111111111111111111112222222222299999999999999'
@@ -113,6 +137,9 @@ if __name__ == '__main__':
     for (char, frequency) in freq_list:
         print(' %-4r |%12s' % (char, codingTable[char]))
 
-    # Encode
-    bin_enc = encode(string1_test, codingTable)
+    # Encode and decode the string
+    bin_enc = encode(string1, codingTable)
+    decoded_string = decode(bin_enc, codingTable)
 
+    print(decoded_string)
+    print(string1)
