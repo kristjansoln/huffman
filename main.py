@@ -25,7 +25,8 @@ a coding table from it.
 """
 def getCodingTable(node, left=True, binString=''):
     # If we are at the bottom node, return dictionary item
-    if type(node) is str:
+    # Checks for str as well, to be able to analyze both binary data and strings
+    if (type(node) is int) or (type(node) is str):
         return {node: binString}
     # If we arent at the bottom node, split nodes to left and right
     (l, r) = node.children()
@@ -44,9 +45,9 @@ getFrequency: Takes a string of characters and returns a list
 of tuples containing unique characters and number of their
 occurences. The list is sorted by this frequency.
 """
-def getFrequency(input_string):
+def getFrequency(input_array):
     freq = {}
-    for c in input_string:
+    for c in input_array:
         if c in freq:
             freq[c] += 1
         else:
@@ -79,7 +80,7 @@ def getNodeTree(freq_array):
     return node_tree
 
 """
-encode: takes a character array and encodes it based on the encoding table. Returns a binary list.
+encode: takes a byte array and encodes it based on the encoding table. Returns an integer, equal to the binary data.
 """
 def encode(inp_array, enc_table):
     encoded_array = ['1'];
@@ -87,13 +88,13 @@ def encode(inp_array, enc_table):
     for c in inp_array:
         encoded_array.append(enc_table[c])
 
-    merged = ''.join(encoded_array)
-    binary_data = int(merged, 2)
+    data = ''.join(encoded_array)
+    data = int(data, 2)
 
-    return binary_data
+    return data
 
 """
-decode: takes a binary array and decodes it according to the encoding table. Returns a string.
+decode: takes an integer, equal to the binary data, and decodes it according to the encoding table. Returns byte array.
 """
 def decode(binary_data, enc_table):
     out_array = []
@@ -109,22 +110,86 @@ def decode(binary_data, enc_table):
             out_array.append(match[0])
             el = ''
 
-    return ''.join(out_array)
+    return bytes(out_array)
 
-# TODO: Import plain text file
 
-# TODO: Export encoded file
+"""
+readPlainFile: Read binary data from a file
+"""
+def readPlainFile(file_path):
+    with open(file_path, 'rb') as file:
+        binary_data = file.read()
+    return binary_data
 
-# TODO: Import encoded file
 
-# TODO: Export plain text file
+"""
+writePlainFile: Write binary data to a file
+"""
+def writePlainFile(file_path, data):
+    with open(file_path, 'wb') as file:
+        file.write(data)
+    return
+
+"""
+readEncodedFile: Read binary data from an encoded file.
+Also read the encoding table from the header.
+"""
+def readEncodedFile(file_path):
+    # Get encoding table from the header
+    with open(file_path, 'r') as file:
+        enc_table = {}
+        for line in file:
+            if line == 'header_end\n':
+                break
+            key, value = line.strip().split(':')
+            enc_table[int(key)] = value
+
+    # Get binary data from the file
+    with open(file_path, 'rb') as file:
+        # Skip the header
+        for line in file:
+            if line == b'header_end\n':
+                break
+        binary_data = file.read()
+
+    data = int.from_bytes(binary_data, byteorder='big')
+
+    return (data, enc_table)
+
+
+"""
+writeEncodedToFile: write the encoded data to a file.
+Adds the encoding table in the header of the file in plain text.
+"""
+def writeEncodedToFile(file_path, data, encoding_table):
+    # First, write the header in plain text
+    with open(file_path, 'w') as file:
+        # file.writelines('header_len:'+str(len(encoding_table.items()))+'\n')
+        for key, value in encoding_table.items():
+            file.write(f"{key}:{value}\n")
+        file.writelines('header_end\n')
+
+    # Now write the binary encoded data
+    length = len(bin(data)[2:])
+    binary_data = data.to_bytes(length, byteorder='big')
+    with open(file_path, 'ab') as file:
+        file.write(binary_data)
+
+    return
+
+
+# TODO: encode a file
+
+# TODO: decode a file
 
 if __name__ == '__main__':
-    string1 = '00001111111111111111111112222222222299999999999999'
-    string1_test = '19192021'
-    string2 = '1111111111111111111111111222222222222222222223333333333333334444444444555555556666666777777888889999'
+    # Open a file
+    binary_data = readPlainFile('test/plain-text.txt')
+    # string1_test = '19192021'
+    # string1 = '00001111111111111111111112222222222299999999999999'
+    # string2 = '1111111111111111111111111222222222222222222223333333333333334444444444555555556666666777777888889999'
 
-    freq_list = getFrequency(string1)
+    freq_list = getFrequency(binary_data)
 
     tree = getNodeTree(freq_list)
 
@@ -137,9 +202,9 @@ if __name__ == '__main__':
     for (char, frequency) in freq_list:
         print(' %-4r |%12s' % (char, codingTable[char]))
 
-    # Encode and decode the string
-    bin_enc = encode(string1, codingTable)
-    decoded_string = decode(bin_enc, codingTable)
+    bin_enc = encode(binary_data, codingTable)
+    writeEncodedToFile('test/encoded.huf', bin_enc, codingTable)
 
-    print(decoded_string)
-    print(string1)
+    read_encoded_data, read_coding_table = readEncodedFile('test/encoded.huf')
+
+    print(decode(read_encoded_data, read_coding_table))
