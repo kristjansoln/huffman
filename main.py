@@ -130,6 +130,7 @@ def writePlainFile(file_path, data):
         file.write(data)
     return
 
+
 """
 readEncodedFile: Read binary data from an encoded file.
 Also read the encoding table from the header.
@@ -178,33 +179,37 @@ def writeEncodedToFile(file_path, data, encoding_table):
     return
 
 
-# TODO: encode a file
+"""
+encodeFile: read a file, encode it and optionally write it into a destination file
+"""
+def encodeFile(src_file, dest_file=None):
+    plain = readPlainFile(src_file)
+    freq_list = getFrequency(plain)
+    tree = getNodeTree(freq_list)
+    codingTable = getCodingTable(tree[0][0]) # Top node of the tree
+    encoded = encode(plain, codingTable)
 
-# TODO: decode a file
+    # Write to destination file, if given in arguments
+    if dest_file is not None:
+        writeEncodedToFile(dest_file, encoded, codingTable)
+
+    return (encoded, codingTable)
+
+
+"""
+decodeFile: read an encoded file, decode it and optionally write it into a destination file
+"""
+def decodeFile(src_file, dest_file=None):
+    encoded, enc_table = readEncodedFile(src_file)
+    decoded = decode(encoded, enc_table)
+
+    # Write to destination file, if given in arguments
+    if dest_file is not None:
+        writePlainFile(dest_file, decoded)
+
+    return decoded
+
 
 if __name__ == '__main__':
-    # Open a file
-    binary_data = readPlainFile('test/plain-text.txt')
-    # string1_test = '19192021'
-    # string1 = '00001111111111111111111112222222222299999999999999'
-    # string2 = '1111111111111111111111111222222222222222222223333333333333334444444444555555556666666777777888889999'
-
-    freq_list = getFrequency(binary_data)
-
-    tree = getNodeTree(freq_list)
-
-    # tree[0][0] is the top node of the tree
-    codingTable = getCodingTable(tree[0][0])
-
-    # Print out the coding table
-    print(' Char | Huffman code ')
-    print('----------------------')
-    for (char, frequency) in freq_list:
-        print(' %-4r |%12s' % (char, codingTable[char]))
-
-    bin_enc = encode(binary_data, codingTable)
-    writeEncodedToFile('test/encoded.huf', bin_enc, codingTable)
-
-    read_encoded_data, read_coding_table = readEncodedFile('test/encoded.huf')
-
-    print(decode(read_encoded_data, read_coding_table))
+    encodeFile('test/plain-text.txt', 'test/encoded.huf')
+    decodeFile('test/encoded.huf', 'test/decoded.txt')
