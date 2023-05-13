@@ -1,7 +1,7 @@
 # Huffman coding
 # Kristjan Šoln
 
-
+from math import ceil
 
 """
 NodeTree: A class that defines an individual node in the node tree.
@@ -101,13 +101,17 @@ def decode(binary_data, enc_table):
     # Remove the '0b' prefix, along with the added leading '1'. See 'encode()'
     binary_data = bin(binary_data)[3:]
 
+    # Reverse the dictionary to make the search faster
+    reverse_table = {}
+    for key, value in enc_table.items():
+        reverse_table[value] = key
+
     el = ''
     for b in binary_data:
         # If you find a match for el in the encoding table, decode it. Otherwise add the next bit and try again.
         el = el + b
-        match = next(((symbol, encoding) for symbol, encoding in enc_table.items() if el == encoding), None)
-        if match is not None:
-            out_array.append(match[0])
+        if el in reverse_table:
+            out_array.append(reverse_table[el])
             el = ''
 
     return bytes(out_array)
@@ -137,12 +141,12 @@ Also read the encoding table from the header.
 """
 def readEncodedFile(file_path):
     # Get encoding table from the header
-    with open(file_path, 'r') as file:
+    with open(file_path, 'rb') as file:
         enc_table = {}
         for line in file:
-            if line == 'header_end\n':
+            if line == b'header_end\n':
                 break
-            key, value = line.strip().split(':')
+            key, value = str(line).rstrip('\\n\'').lstrip('b\'').split(':')
             enc_table[int(key)] = value
 
     # Get binary data from the file
@@ -171,8 +175,8 @@ def writeEncodedToFile(file_path, data, encoding_table):
         file.writelines('header_end\n')
 
     # Now write the binary encoded data
-    length = len(bin(data)[2:])
-    binary_data = data.to_bytes(length, byteorder='big')
+    length = ceil(len(bin(data)[2:])/8)
+    binary_data = data.to_bytes(length, byteorder='big', signed=False)
     with open(file_path, 'ab') as file:
         file.write(binary_data)
 
@@ -183,14 +187,18 @@ def writeEncodedToFile(file_path, data, encoding_table):
 encodeFile: read a file, encode it and optionally write it into a destination file
 """
 def encodeFile(src_file, dest_file=None):
+    print("encodeFile: reading " + src_file)
     plain = readPlainFile(src_file)
+    print("encodeFile: generating coding table")
     freq_list = getFrequency(plain)
     tree = getNodeTree(freq_list)
     codingTable = getCodingTable(tree[0][0]) # Top node of the tree
+    print("encodeFile: encoding")
     encoded = encode(plain, codingTable)
 
     # Write to destination file, if given in arguments
     if dest_file is not None:
+        print("encodeFile: writing to " + dest_file)
         writeEncodedToFile(dest_file, encoded, codingTable)
 
     return (encoded, codingTable)
@@ -200,16 +208,21 @@ def encodeFile(src_file, dest_file=None):
 decodeFile: read an encoded file, decode it and optionally write it into a destination file
 """
 def decodeFile(src_file, dest_file=None):
+    print("decodeFile: reading " + src_file)
     encoded, enc_table = readEncodedFile(src_file)
+    print("decodeFile: decoding file")
     decoded = decode(encoded, enc_table)
 
     # Write to destination file, if given in arguments
     if dest_file is not None:
+        print("decodeFile: writing to " + dest_file)
         writePlainFile(dest_file, decoded)
 
     return decoded
 
 
 if __name__ == '__main__':
-    encodeFile('test/plain-text.txt', 'test/encoded.huf')
-    decodeFile('test/encoded.huf', 'test/decoded.txt')
+    # encodeFile('test/hp.txt', 'test/encoded.huf')
+    # decodeFile('test/encoded.huf', 'test/decoded.txt')
+    encodeFile('test/slika.bmp', 'test/encoded.huf')
+    decodeFile('test/encoded.huf', 'test/decoded.bmp')
