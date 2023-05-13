@@ -2,6 +2,8 @@
 # Kristjan Šoln
 
 from math import ceil
+from os.path import getsize
+import numpy as np
 
 """
 NodeTree: A class that defines an individual node in the node tree.
@@ -192,16 +194,20 @@ def encodeFile(src_file, dest_file=None):
     print("encodeFile: generating coding table")
     freq_list = getFrequency(plain)
     tree = getNodeTree(freq_list)
-    codingTable = getCodingTable(tree[0][0]) # Top node of the tree
+    coding_table = getCodingTable(tree[0][0]) # Top node of the tree
     print("encodeFile: encoding")
-    encoded = encode(plain, codingTable)
+    encoded = encode(plain, coding_table)
 
     # Write to destination file, if given in arguments
     if dest_file is not None:
         print("encodeFile: writing to " + dest_file)
-        writeEncodedToFile(dest_file, encoded, codingTable)
+        writeEncodedToFile(dest_file, encoded, coding_table)
+        comp_ratio = getCompressionRatio(dest_file, src_file)
+        efficiency = getEfficiency(plain, coding_table)
+        print("encodeFile: Compression ratio: " + str(round(comp_ratio*100, 2)) + "%")
+        print("encodeFile: Efficiency: " + str(round(efficiency*100, 2)) + "%")
 
-    return (encoded, codingTable)
+    return (encoded, coding_table)
 
 
 """
@@ -221,8 +227,54 @@ def decodeFile(src_file, dest_file=None):
     return decoded
 
 
+"""
+getEfficiency: Returns compression efficiency
+"""
+def getEfficiency(plain_data, coding_table, order=1):
+    # Calculate array of probabilities
+    if order == 1:
+        prob = np.zeros((256)**order)
+        for el in plain_data:
+            prob[el] = prob[el] + 1
+    else: # Order > 1     # Count unique sublists in the list
+        prob = {}
+        for lis in plain_data:
+            prob.setdefault(tuple(lis), list()).append(1)
+        for a, b in prob.items():
+            prob[a] = sum(b)
+        prob = list(prob.values())
+    # Normalize the distribution
+    prob = prob / np.sum(prob)
+
+    # Calculate entropy
+    prob = prob[prob != 0]  # Remove zeros in order to avoid 0*log(0)
+    entr = (- np.sum(prob*np.log2(prob)))/order  # Calculate H - entropy
+
+    # Calculate average encoding size
+    freq = getFrequency(plain_data)
+    # Normalize
+    total = sum(n for c,n in freq)
+    for i in range(len(freq)):
+        freq[i] = (freq[i][0], freq[i][1]/total)
+    # Calculate average encoding length
+    n_bar = sum(f*len(coding_table[k]) for k,f in freq)
+
+    # Calculate efficiency
+    return entr / n_bar
+
+
+"""
+getCompressionRatio: Returns file size ratio
+"""
+def getCompressionRatio(comp_file, plain_file):
+    comp_size = getsize(comp_file)
+    plain_size = getsize(plain_file)
+    return comp_size/plain_size
+
 if __name__ == '__main__':
+    # encodeFile('test/plain-text.txt', 'test/encoded.huf')
     # encodeFile('test/hp.txt', 'test/encoded.huf')
-    # decodeFile('test/encoded.huf', 'test/decoded.txt')
-    encodeFile('test/slika.bmp', 'test/encoded.huf')
-    decodeFile('test/encoded.huf', 'test/decoded.bmp')
+    encodeFile('test/besedilo.txt', 'test/encoded.huf')
+
+    decodeFile('test/encoded.huf', 'test/decoded.txt')
+
