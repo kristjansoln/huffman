@@ -238,22 +238,22 @@ getEfficiency: Returns compression efficiency
 """
 def getEfficiency(plain_data, coding_table, order=1):
 
-    return 0
-    # # Calculate entropy of the source
-    # freq = getFrequency(plain_data, 1)
-    # total = sum(n for c,n in freq)
-    # prob = [p/total for k,p in freq]
-    # entr = (- np.sum(prob*np.log2(prob)))
+    # Calculate entropy
+    prob = [p for k,p in getFrequency(plain_data, order)]
+    total = sum(prob)
+    prob = [p/total for p in prob]
+    entr = (- np.sum(prob*np.log2(prob)))
 
-    # # Calculate average encoding length
-    # freq = getFrequency(plain_data, order)
-    # total = sum(n for c,n in freq)
-    # for i in range(len(freq)):
-    #     freq[i] = (freq[i][0], freq[i][1]/total)
-    # n_bar = sum(f*len(coding_table[k]) for k,f in freq)
 
-    # # Calculate efficiency
-    # return entr / n_bar
+    # Calculate average encoding length
+    freq = getFrequency(plain_data, order)
+    total = sum(n for c,n in freq)
+    for i in range(len(freq)):
+        freq[i] = (freq[i][0], freq[i][1]/total)
+    n_bar = sum(f*len(coding_table[k]) for k,f in freq)
+
+    # Calculate efficiency
+    return entr / n_bar
 
 
 """
@@ -267,7 +267,7 @@ def getCompressionRatio(comp_file, plain_file):
 if __name__ == '__main__':
     # encodeFile('test/plain-text.txt', 'test/encoded.huf', order=2)
     # encodeFile('test/hp.txt', 'test/encoded.huf', order=3)
-    encodeFile('test/besedilo.txt', 'test/encoded.huf', order=2)
+    encodeFile('test/besedilo.txt', 'test/encoded.huf', order=4)
 
     decodeFile('test/encoded.huf', 'test/decoded.txt')
 
