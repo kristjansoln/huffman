@@ -50,7 +50,7 @@ occurences. The list is sorted by this frequency.
 """
 def getFrequency(bytes_data, order=1):
     # Create N-byte pairs
-    byte_pairs = [bytes_data[i:i+order] for i in range(len(bytes_data) - order + 1)]
+    byte_pairs = [bytes_data[i:i+order] for i in range(0, len(bytes_data) - order + 1, order)]
     # Calculate N-byte pair frequency
     freq = Counter(byte_pairs)
 
