@@ -190,6 +190,13 @@ encodeFile: read a file, encode it and optionally write it into a destination fi
 def encodeFile(src_file, dest_file=None, order=1):
     print("encodeFile: reading " + src_file)
     plain = readPlainFile(src_file)
+    # The input data lenght must be divisible by the specified order.
+    # If it is not, it must be padded with extra characters, or the algorithm
+    # skips the last character.
+    if len(plain)%order != 0:
+        print("encodeFile: Warning: The encoded file has to be padded")
+        plain = plain + b'\n'*(order-(len(plain)%order))
+
     print("encodeFile: generating coding table")
     freq_list = getFrequency(plain, order)
     tree = getNodeTree(freq_list)
