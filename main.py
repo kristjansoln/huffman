@@ -141,26 +141,21 @@ readEncodedFile: Read binary data from an encoded file.
 Also read the encoding table from the header.
 """
 def readEncodedFile(file_path):
-    # Get encoding table from the header
     with open(file_path, 'rb') as file:
+        # Extract header from file
+        header = file.read().split(b'header_end:::\n')[0]
+        header = header.split(b':::\n')[:-1]
+        # Extract encoding table from the header
         enc_table = {}
-        for line in file:
-            if line == b'header_end\n':
-                break
-            key, value = str(line).rsplit('::', 1)
-            key = key[2:]
-            key = bytes(bytearray(key, 'ascii'))
-            value = value.rstrip("\\n\"")
-            value = value[:-3]
+        for line in header:
+            key, value = line.rsplit(b':::', 1)
+            value = str(value)[2:-1]
             enc_table[key] = value
 
     # Get binary data from the file
     with open(file_path, 'rb') as file:
         # Skip the header
-        for line in file:
-            if line == b'header_end\n':
-                break
-        binary_data = file.read()
+        binary_data = file.read().split(b'header_end:::\n')[1]
 
     data = int.from_bytes(binary_data, byteorder='big')
 
@@ -175,9 +170,10 @@ def writeEncodedToFile(file_path, data, encoding_table):
     # First, write the header in plain text
     with open(file_path, 'wb') as file:
         for key, value in encoding_table.items():
-            a = key+b'::'+bytes(bytearray(value, 'ascii'))+b'\n'
+            # Use custom delimiters in order to avoid delimiters in text
+            a = key+b':::'+bytes(bytearray(value, 'ascii'))+b':::\n'
             file.write(a)
-        file.write(b'header_end\n')
+        file.write(b'header_end:::\n')
 
     # Now write the binary encoded data
     length = ceil(len(bin(data)[2:])/8)
