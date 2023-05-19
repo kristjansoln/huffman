@@ -22,6 +22,7 @@ class NodeTree(object):
     def __str__(self):
         return '%s_%s' % (self.left, self.right)
 
+
 """
 getCodingTable: A function that takes a node tree and creates
 a coding table from it.
@@ -50,7 +51,8 @@ occurences. The list is sorted by this frequency.
 """
 def getFrequency(bytes_data, order=1):
     # Create N-byte pairs
-    byte_pairs = [bytes_data[i:i+order] for i in range(0, len(bytes_data) - order + 1, order)]
+    byte_pairs = [bytes_data[i:i+order]
+                  for i in range(0, len(bytes_data) - order + 1, order)]
     # Calculate N-byte pair frequency
     freq = Counter(byte_pairs)
 
@@ -59,6 +61,7 @@ def getFrequency(bytes_data, order=1):
     # to define a function which takes an array and returns the second element of it.
     freq = sorted(freq.items(), key=lambda x: x[1], reverse=True)
     return freq
+
 
 """
 getNodeTree: create a node tree from a sorted list of unique characters and their frequencies.
@@ -80,11 +83,12 @@ def getNodeTree(freq_array):
 
     return node_tree
 
+
 """
 encode: takes a byte array and encodes it based on the encoding table. Returns an integer, equal to the binary data.
 """
 def encode(inp_array, enc_table, order):
-    encoded_array = ['1'];
+    encoded_array = ['1']
     # Always start with a 1, so the casting to binary data doesn't trim leading zeros.
     for i in range(0, len(inp_array)-order+1, order):
         encoded_array.append(enc_table[inp_array[i:i+order]])
@@ -93,6 +97,7 @@ def encode(inp_array, enc_table, order):
     data = int(data, 2)
 
     return data
+
 
 """
 decode: takes an integer, equal to the binary data, and decodes it according to the encoding table. Returns byte array.
@@ -142,10 +147,19 @@ Also read the encoding table from the header.
 """
 def readEncodedFile(file_path):
     with open(file_path, 'rb') as file:
+
         # Extract header from file
         header = file.read().split(b'header_end:::\n')[0]
         header = header.split(b':::\n')[:-1]
-        # Extract encoding table from the header
+
+        # Extract padding info from header
+        if b"Padding_len" not in header[0]:
+            raise Exception("Invalid padding information")
+        padding_len = int.from_bytes(header[0].split(b":::")[
+                                     1], byteorder='little')
+        header = header[1:]
+
+        # Extract encoding table from header
         enc_table = {}
         for line in header:
             key, value = line.rsplit(b':::', 1)
@@ -157,27 +171,33 @@ def readEncodedFile(file_path):
         # Skip the header
         binary_data = file.read().split(b'header_end:::\n')[1]
 
-    data = int.from_bytes(binary_data, byteorder='big')
+    data = int.from_bytes(binary_data, byteorder='little')
 
-    return (data, enc_table)
+    return (data, enc_table, padding_len)
 
 
 """
 writeEncodedToFile: write the encoded data to a file.
 Adds the encoding table in the header of the file.
 """
-def writeEncodedToFile(file_path, data, encoding_table):
+def writeEncodedToFile(file_path, data, encoding_table, padding_len):
     # First, write the header in plain text
     with open(file_path, 'wb') as file:
+
+        # Add padding info
+        a = b"Padding_len:::" + bytes([padding_len]) + b":::\n"
+        file.write(a)
+
         for key, value in encoding_table.items():
             # Use custom delimiters in order to avoid delimiters in text
             a = key+b':::'+bytes(bytearray(value, 'ascii'))+b':::\n'
             file.write(a)
+
         file.write(b'header_end:::\n')
 
     # Now write the binary encoded data
     length = ceil(len(bin(data)[2:])/8)
-    binary_data = data.to_bytes(length, byteorder='big', signed=False)
+    binary_data = data.to_bytes(length, byteorder='little', signed=False)
     with open(file_path, 'ab') as file:
         file.write(binary_data)
 
@@ -193,24 +213,26 @@ def encodeFile(src_file, dest_file=None, order=1):
     # The input data lenght must be divisible by the specified order.
     # If it is not, it must be padded with extra characters, or the algorithm
     # skips the last character.
-    if len(plain)%order != 0:
-        print("encodeFile: Warning: The encoded file has to be padded")
-        plain = plain + b'\n'*(order-(len(plain)%order))
+    padding_len = order-(len(plain) % order)
+    if padding_len != 0:
+        print("encodeFile: The encoded file has to be padded")
+        plain = plain + b'\0'*padding_len
 
     print("encodeFile: generating coding table")
     freq_list = getFrequency(plain, order)
     tree = getNodeTree(freq_list)
-    coding_table = getCodingTable(tree[0][0]) # Top node of the tree
+    coding_table = getCodingTable(tree[0][0])  # Top node of the tree
     print("encodeFile: encoding")
     encoded = encode(plain, coding_table, order)
 
     # Write to destination file, if given in arguments
     if dest_file is not None:
         print("encodeFile: writing to " + dest_file)
-        writeEncodedToFile(dest_file, encoded, coding_table)
+        writeEncodedToFile(dest_file, encoded, coding_table, padding_len)
         comp_ratio = getCompressionRatio(dest_file, src_file)
         efficiency = getEfficiency(plain, coding_table, order)
-        print("encodeFile: Compression ratio: " + str(round(comp_ratio*100, 2)) + "%")
+        print("encodeFile: Compression ratio: " +
+              str(round(comp_ratio*100, 2)) + "%")
         print("encodeFile: Efficiency: " + str(round(efficiency*100, 2)) + "%")
 
     return (encoded, coding_table)
@@ -221,9 +243,12 @@ decodeFile: read an encoded file, decode it and optionally write it into a desti
 """
 def decodeFile(src_file, dest_file=None):
     print("decodeFile: reading " + src_file)
-    encoded, enc_table = readEncodedFile(src_file)
+    encoded, enc_table, padding_len = readEncodedFile(src_file)
     print("decodeFile: decoding file")
     decoded = decode(encoded, enc_table)
+
+    # Remove padding
+    decoded = decoded[:-padding_len]
 
     # Write to destination file, if given in arguments
     if dest_file is not None:
@@ -239,18 +264,17 @@ getEfficiency: Returns compression efficiency
 def getEfficiency(plain_data, coding_table, order=1):
 
     # Calculate entropy
-    prob = [p for k,p in getFrequency(plain_data, order)]
+    prob = [p for k, p in getFrequency(plain_data, order)]
     total = sum(prob)
     prob = [p/total for p in prob]
     entr = (- np.sum(prob*np.log2(prob)))
 
-
     # Calculate average encoding length
     freq = getFrequency(plain_data, order)
-    total = sum(n for c,n in freq)
+    total = sum(n for c, n in freq)
     for i in range(len(freq)):
         freq[i] = (freq[i][0], freq[i][1]/total)
-    n_bar = sum(f*len(coding_table[k]) for k,f in freq)
+    n_bar = sum(f*len(coding_table[k]) for k, f in freq)
 
     # Calculate efficiency
     return entr / n_bar
@@ -264,10 +288,7 @@ def getCompressionRatio(comp_file, plain_file):
     plain_size = getsize(plain_file)
     return comp_size/plain_size
 
+
 if __name__ == '__main__':
-    # encodeFile('test/plain-text.txt', 'test/encoded.huf', order=2)
-    # encodeFile('test/hp.txt', 'test/encoded.huf', order=3)
-    encodeFile('test/besedilo.txt', 'test/encoded.huf', order=4)
-
+    encodeFile('test/besedilo.txt', 'test/encoded.huf', order=2)
     decodeFile('test/encoded.huf', 'test/decoded.txt')
-
