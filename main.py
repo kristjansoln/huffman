@@ -6,6 +6,7 @@ from os.path import getsize
 import numpy as np
 from collections import Counter
 
+
 """
 NodeTree: A class that defines an individual node in the node tree.
 Each node has a left and a right child.
@@ -27,7 +28,7 @@ class NodeTree(object):
 getCodingTable: A function that takes a node tree and creates
 a coding table from it.
 """
-def getCodingTable(node, left=True, binString=''):
+def getCodingTable(node, binString=''):
     # If we are at the bottom node, return dictionary item
     # Checks for str as well, to be able to analyze both binary data and strings
     if (type(node) is int) or (type(node) is str) or (type(node) is bytes):
@@ -37,9 +38,9 @@ def getCodingTable(node, left=True, binString=''):
     d = dict()
     # Add left and right node to d, recursively
     # Left node is the less probable one, so it gets a one
-    d.update(getCodingTable(l, True, binString + '1'))
+    d.update(getCodingTable(l, binString + '1'))
     # Right node is the more probable one, so it gets a zero
-    d.update(getCodingTable(r, False, binString + '0'))
+    d.update(getCodingTable(r, binString + '0'))
 
     return d
 
@@ -112,11 +113,12 @@ def decode(binary_data, enc_table):
     for key, value in enc_table.items():
         reverse_table[value] = key
 
+    keys = reverse_table.keys()
     el = ''
     for b in binary_data:
         # If you find a match for el in the encoding table, decode it. Otherwise add the next bit and try again.
         el = el + b
-        if el in reverse_table:
+        if el in keys:
             out_array = out_array + reverse_table[el]
             el = ''
 
@@ -213,15 +215,16 @@ def encodeFile(src_file, dest_file=None, order=1):
     # The input data lenght must be divisible by the specified order.
     # If it is not, it must be padded with extra characters, or the algorithm
     # skips the last character.
-    padding_len = order-(len(plain) % order)
+    padding_len = len(plain) % order
     if padding_len != 0:
         print("encodeFile: The encoded file has to be padded")
-        plain = plain + b'\0'*padding_len
+        plain = plain + b' '*padding_len
 
     print("encodeFile: generating coding table")
     freq_list = getFrequency(plain, order)
     tree = getNodeTree(freq_list)
     coding_table = getCodingTable(tree[0][0])  # Top node of the tree
+
     print("encodeFile: encoding")
     encoded = encode(plain, coding_table, order)
 
@@ -248,7 +251,7 @@ def decodeFile(src_file, dest_file=None):
     decoded = decode(encoded, enc_table)
 
     # Remove padding
-    decoded = decoded[:-padding_len]
+    decoded = decoded[:len(decoded)-padding_len]
 
     # Write to destination file, if given in arguments
     if dest_file is not None:
@@ -290,5 +293,35 @@ def getCompressionRatio(comp_file, plain_file):
 
 
 if __name__ == '__main__':
-    encodeFile('test/besedilo.txt', 'test/encoded.huf', order=2)
+    print("------besedilo.txt--------------------------------")
+    print("order = 1")
+    encodeFile('test/besedilo.txt', 'test/encoded.huf', order=1)
     decodeFile('test/encoded.huf', 'test/decoded.txt')
+    print("order = 2")
+    encodeFile('test/besedilo.txt', 'test/encoded.huf', order=2)
+    # decodeFile('test/encoded.huf', 'test/decoded.txt')
+    print("order = 3")
+    encodeFile('test/besedilo.txt', 'test/encoded.huf', order=3)
+    # decodeFile('test/encoded.huf', 'test/decoded.txt')
+
+    print("------random binary data--------------------------------")
+    print("order = 1")
+    encodeFile('test/binary_data', 'test/encoded.huf', order=1)
+    # decodeFile('test/encoded.huf', 'test/decoded_binary_data')
+    print("order = 2")
+    encodeFile('test/binary_data', 'test/encoded.huf', order=2)
+    # decodeFile('test/encoded.huf', 'test/decoded_binary_data')
+    print("order = 3")
+    encodeFile('test/binary_data', 'test/encoded.huf', order=3)
+    # decodeFile('test/encoded.huf', 'test/decoded_binary_data')
+
+    print("------slika.bmp--------------------------------")
+    print("order = 1")
+    encodeFile('test/slika.bmp', 'test/encoded.huf', order=1)
+    # decodeFile('test/encoded.huf', 'test/decoded.bmp')
+    print("order = 2")
+    encodeFile('test/slika.bmp', 'test/encoded.huf', order=2)
+    # decodeFile('test/encoded.huf', 'test/decoded.bmp')
+    print("order = 3")
+    encodeFile('test/slika.bmp', 'test/encoded.huf', order=3)
+    # decodeFile('test/encoded.huf', 'test/decoded.bmp')
