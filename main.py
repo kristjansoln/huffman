@@ -235,8 +235,8 @@ def encodeFile(src_file, dest_file=None, order=1):
         comp_ratio = getCompressionRatio(dest_file, src_file)
         efficiency = getEfficiency(plain, coding_table, order)
         print("encodeFile: Compression ratio: " +
-              str(round(comp_ratio*100, 2)) + "%")
-        print("encodeFile: Efficiency: " + str(round(efficiency*100, 2)) + "%")
+              str(comp_ratio*100) + "%")
+        print("encodeFile: Efficiency: " + str(efficiency) + "%")
 
     return (encoded, coding_table)
 
@@ -266,18 +266,17 @@ getEfficiency: Returns compression efficiency
 """
 def getEfficiency(plain_data, coding_table, order=1):
 
+    freq_pairs = getFrequency(plain_data, order)
+    freq = np.fromiter((f for k, f in freq_pairs), int)
+    total = np.sum(freq)
+
     # Calculate entropy
-    prob = [p for k, p in getFrequency(plain_data, order)]
-    total = sum(prob)
-    prob = [p/total for p in prob]
-    entr = (- np.sum(prob*np.log2(prob)))
+    entr = -(np.sum(freq*np.log2(freq)))/total + np.log2(total)
+    print("Entropija:", entr)
 
     # Calculate average encoding length
-    freq = getFrequency(plain_data, order)
-    total = sum(n for c, n in freq)
-    for i in range(len(freq)):
-        freq[i] = (freq[i][0], freq[i][1]/total)
-    n_bar = sum(f*len(coding_table[k]) for k, f in freq)
+    n_bar = np.sum(np.fromiter((f*len(coding_table[k]) for k, f in freq_pairs), int)) / total
+    print("Povprečna dolžina kodne zamenjave:", n_bar)
 
     # Calculate efficiency
     return entr / n_bar
@@ -299,29 +298,37 @@ if __name__ == '__main__':
     decodeFile('test/encoded.huf', 'test/decoded.txt')
     print("order = 2")
     encodeFile('test/besedilo.txt', 'test/encoded.huf', order=2)
-    # decodeFile('test/encoded.huf', 'test/decoded.txt')
+    decodeFile('test/encoded.huf', 'test/decoded.txt')
     print("order = 3")
     encodeFile('test/besedilo.txt', 'test/encoded.huf', order=3)
     # decodeFile('test/encoded.huf', 'test/decoded.txt')
 
     print("------random binary data--------------------------------")
     print("order = 1")
-    encodeFile('test/binary_data', 'test/encoded.huf', order=1)
+    encodeFile('test/binary_data2', 'test/encoded.huf', order=1)
     # decodeFile('test/encoded.huf', 'test/decoded_binary_data')
     print("order = 2")
-    encodeFile('test/binary_data', 'test/encoded.huf', order=2)
-    # decodeFile('test/encoded.huf', 'test/decoded_binary_data')
-    print("order = 3")
-    encodeFile('test/binary_data', 'test/encoded.huf', order=3)
+    encodeFile('test/binary_data2', 'test/encoded.huf', order=2)
     # decodeFile('test/encoded.huf', 'test/decoded_binary_data')
 
     print("------slika.bmp--------------------------------")
     print("order = 1")
     encodeFile('test/slika.bmp', 'test/encoded.huf', order=1)
-    # decodeFile('test/encoded.huf', 'test/decoded.bmp')
+    decodeFile('test/encoded.huf', 'test/decoded.bmp')
     print("order = 2")
     encodeFile('test/slika.bmp', 'test/encoded.huf', order=2)
     # decodeFile('test/encoded.huf', 'test/decoded.bmp')
     print("order = 3")
     encodeFile('test/slika.bmp', 'test/encoded.huf', order=3)
     # decodeFile('test/encoded.huf', 'test/decoded.bmp')
+
+    print("------ Get entropy of a binary file ------------------------")
+    for file in ['test/binary_data1', 'test/binary_data2', 'test/binary_data3', 'test/binary_data4']:
+        for order in [1, 2, 3]:
+            data = readPlainFile(file)
+            freq_pairs = getFrequency(data, order)
+            freq = np.fromiter((f for k, f in freq_pairs), int)
+            total = np.sum(freq)
+            # Calculate entropy
+            entr = -(np.sum(freq*np.log2(freq)))/total + np.log2(total)
+            print("File: %s size[MB]: %02f order: %d entropy: %7f mean: %3f std:%3f" % (file, getsize(file)/1000000, order, entr, np.average(freq), np.std(freq)) )
